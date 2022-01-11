@@ -36,9 +36,10 @@ def get_file_user_emails(self, file_id) -> List[str]:
 
     emails = set()
     for perm in permissions:
-        email = perm["emailAddress"]
-        emails.add(email)
-        emails.add(email.lower())
+        if perm["type"] == "user":
+            email = perm["emailAddress"]
+            emails.add(email)
+            emails.add(email.lower())
 
     return sorted(list(emails))
 
