@@ -152,13 +152,21 @@ class HuntSettings(models.Model):
 
     # The id of your Google Drive folder
     # This should be part of the URL (https://drive.google.com/drive/folders/<folder_id>)
-    # TODO(#514): use this as the destination for puzzle sheets, instead of defaulting to the
-    # directory of the template file
+    # This folder is used for login permissions and for puzzle storage.
+    # This is where puzzle files will be kept, so it should not be modified by humans
     google_drive_folder_id = models.CharField(max_length=128, blank=True)
 
     # The id of your Google Sheets template file
     # This should be part of the url (https://docs.google.com/spreadsheets/d/<sheet_id>)
     google_sheets_template_file_id = models.CharField(max_length=128, blank=True)
+
+    # The id of a Google Drive folder where template files for this hunt can be found
+    # Used as a way to get around #372
+    # Cardboard will try to use one of the files in here if possible, before making a copy
+    # of the master sheet.
+    # TODO: Figure out a better solution to this longer-term, like getting Drive permission on sign-in
+    # and using those instead of the service account, or using an add-on somehow
+    google_sheets_template_folder_id = models.CharField(max_length=128, blank=True)
 
     # A link to the Google Drive folder that solvers can use for misc. files
     google_drive_human_url = models.URLField(blank=True)
@@ -178,14 +186,19 @@ class HuntSettings(models.Model):
         max_length=128, blank=True
     )
 
-    # The category name to create all Discord text channels in
-    discord_text_category = models.CharField(
-        max_length=128, default="text [puzzles]", blank=True
+    # The category name to create all metas in
+    discord_metas_category = models.CharField(
+        max_length=128, default="metas", blank=True
     )
 
-    # The category name to create all Discord voice channels in
-    discord_voice_category = models.CharField(
-        max_length=128, default="voice [puzzles]", blank=True
+    # The category name to create all unassigned Discord text channels in
+    discord_unassigned_text_category = models.CharField(
+        max_length=128, default="text [unassigned]", blank=True
+    )
+
+    # The category name to create all unassigned Discord voice channels in
+    discord_unassigned_voice_category = models.CharField(
+        max_length=128, default="voice [unassigned]", blank=True
     )
 
     # The category name to archive all Discord channels for solved puzzles in

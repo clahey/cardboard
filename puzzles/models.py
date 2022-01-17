@@ -64,8 +64,6 @@ class Puzzle(models.Model):
     # object.
     answer = models.CharField(max_length=128)
 
-    BACKSOLVED_TAG = "BACKSOLVED"
-
     tags = models.ManyToManyField(PuzzleTag, related_name="puzzles")
 
     metas = models.ManyToManyField("self", symmetrical=False, related_name="feeders")
@@ -196,7 +194,10 @@ class Puzzle(models.Model):
         return field_url_map
 
     def is_backsolved(self):
-        return self.tags.filter(name=Puzzle.BACKSOLVED_TAG, hunt=self.hunt).exists()
+        return (
+            self.is_solved()
+            and self.tags.filter(name=PuzzleTag.BACKSOLVED, hunt=self.hunt).exists()
+        )
 
     @staticmethod
     def maybe_truncate_name(name):

@@ -1,6 +1,7 @@
 from .utils import GoogleApiClientTask
 from celery import shared_task
 from django.conf import settings
+from googleapiclient.errors import Error
 from social_core.exceptions import AuthForbidden
 from typing import List
 
@@ -28,6 +29,10 @@ def auth_allowed(backend, details, response, *args, **kwargs):
 
 @shared_task(base=GoogleApiClientTask, bind=True)
 def get_file_user_emails(self, file_id) -> List[str]:
+    """
+    Returns a sorted list of emails that have access to `file_id` or None if the file is
+    world readable.
+    """
     response = (
         self.drive_service().files().get(fileId=file_id, fields="permissions").execute()
     )
@@ -36,10 +41,11 @@ def get_file_user_emails(self, file_id) -> List[str]:
 
     emails = set()
     for perm in permissions:
-        if perm["type"] == "user":
-            email = perm["emailAddress"]
-            emails.add(email)
-            emails.add(email.lower())
+        if perm["id"] == "anyoneWithLink":
+            return None
+        email = perm["emailAddress"]
+        emails.add(email)
+        emails.add(email.lower())
 
     return sorted(list(emails))
 

@@ -53,9 +53,7 @@ class AnswerViewSet(viewsets.ModelViewSet):
 
         if google_api_lib.enabled() and puzzle.sheet:
             if puzzle.is_solved():
-                solve_label = (
-                    Puzzle.BACKSOLVED_TAG if puzzle.is_backsolved() else Puzzle.SOLVED
-                )
+                solve_label = "BACKSOLVED" if puzzle.is_backsolved() else "SOLVED"
                 answers = ", ".join(puzzle.correct_answers())
 
                 google_api_lib.tasks.rename_sheet.delay(
@@ -91,6 +89,11 @@ class AnswerViewSet(viewsets.ModelViewSet):
                             puzzle.id, answer.text
                         )
                     )
+                    transaction.on_commit(
+                        lambda: chat.tasks.cleanup_puzzle_channels.apply_async(
+                            args=(puzzle.id,), countdown=1800  # clean up in 30 minutes
+                        )
+                    )
                 answer.save()
                 transaction.on_commit(
                     lambda: AnswerViewSet._maybe_update_meta_sheets_for_feeder(puzzle)
@@ -108,6 +111,7 @@ class AnswerViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             answer = self.get_object()
             puzzle = get_object_or_404(Puzzle, pk=self.kwargs["puzzle_id"])
+            was_backsolved = puzzle.is_backsolved()
             answer.delete()
             # If a SOLVED puzzle has no more correct answers, revert status to SOLVING.
             if (
@@ -119,10 +123,15 @@ class AnswerViewSet(viewsets.ModelViewSet):
                     transaction.on_commit(
                         lambda: chat.tasks.handle_puzzle_unsolved.delay(puzzle.id)
                     )
+                elif settings.CHAT_DEFAULT_SERVICE:
+                    # recreate chat if they had already been cleaned up from being marked as SOLVED
+                    transaction.on_commit(
+                        lambda: chat.tasks.create_chat_for_puzzle.delay(puzzle.id)
+                    )
                 # remove backsolve tag if puzzle is no longer solved
-                if puzzle.is_backsolved():
+                if was_backsolved:
                     backsolve_tag = PuzzleTag.objects.filter(
-                        name=Puzzle.BACKSOLVED_TAG, hunt=puzzle.hunt
+                        name=PuzzleTag.BACKSOLVED, hunt=puzzle.hunt
                     )
 
                     puzzle.tags.remove(backsolve_tag[0])
@@ -221,11 +230,13 @@ class PuzzleViewSet(viewsets.ModelViewSet):
                 serializer.is_valid(raise_exception=True)
                 data = serializer.validated_data
                 new_url = data.get("url", puzzle.url)
-                is_new_url = new_url != puzzle.url
+                url_changed = new_url != puzzle.url
+                new_is_meta = data.get("is_meta", puzzle.is_meta)
+                meta_status_changed = new_is_meta != puzzle.is_meta
                 puzzle.update_metadata(
                     new_name=data.get("name", puzzle.name),
                     new_url=new_url,
-                    new_is_meta=data.get("is_meta", puzzle.is_meta),
+                    new_is_meta=new_is_meta,
                 )
                 if "status" in data:
                     old_status = puzzle.status
@@ -240,6 +251,12 @@ class PuzzleViewSet(viewsets.ModelViewSet):
                                     puzzle.guesses.filter(status=Answer.CORRECT)
                                     .first()
                                     .text,
+                                )
+                            )
+                            transaction.on_commit(
+                                lambda: chat.tasks.cleanup_puzzle_channels.apply_async(
+                                    args=(puzzle.id,),
+                                    countdown=1800,  # clean up in 30 minutes
                                 )
                             )
                         transaction.on_commit(
@@ -269,7 +286,7 @@ class PuzzleViewSet(viewsets.ModelViewSet):
                         lambda: AnswerViewSet._maybe_update_sheets_title(puzzle)
                     )
 
-                if is_new_url and google_api_lib.enabled():
+                if url_changed and google_api_lib.enabled():
                     transaction.on_commit(
                         lambda: google_api_lib.tasks.add_puzzle_link_to_sheet.delay(
                             new_url, puzzle.sheet
@@ -280,6 +297,11 @@ class PuzzleViewSet(viewsets.ModelViewSet):
                         lambda: google_api_lib.tasks.update_meta_sheet_feeders.delay(
                             puzzle.id
                         )
+                    )
+
+                if meta_status_changed and puzzle.chat_room:
+                    transaction.on_commit(
+                        lambda: chat.tasks.handle_puzzle_meta_change.delay(puzzle.id)
                     )
 
         except PuzzleModelError as e:
@@ -360,7 +382,7 @@ class PuzzleTagViewSet(viewsets.ModelViewSet):
                     lambda: chat.tasks.handle_tag_removed.delay(puzzle.id, tag.name)
                 )
 
-            if tag.name == Puzzle.BACKSOLVED_TAG:
+            if tag.name.upper() == PuzzleTag.BACKSOLVED.upper():
                 transaction.on_commit(
                     lambda: AnswerViewSet._maybe_update_sheets_title(puzzle)
                 )
@@ -405,11 +427,14 @@ class PuzzleTagViewSet(viewsets.ModelViewSet):
                     color=tag_color,
                 )
                 puzzle.tags.add(tag)
-                if tag.name == "HIGH PRIORITY" or tag.name == "LOW PRIORITY":
+                if (
+                    tag.name == PuzzleTag.HIGH_PRIORITY
+                    or tag.name == PuzzleTag.LOW_PRIORITY
+                ):
                     opposite_tag_name = (
-                        "LOW PRIORITY"
-                        if tag.name == "HIGH PRIORITY"
-                        else "HIGH PRIORITY"
+                        PuzzleTag.LOW_PRIORITY
+                        if tag.name == PuzzleTag.HIGH_PRIORITY
+                        else PuzzleTag.HIGH_PRIORITY
                     )
                     # This should be 0 or 1 entries.
                     maybe_tag_to_remove = PuzzleTag.objects.filter(
@@ -423,7 +448,7 @@ class PuzzleTagViewSet(viewsets.ModelViewSet):
                     lambda: chat.tasks.handle_tag_added.delay(puzzle.id, tag.name)
                 )
 
-            if tag.name == Puzzle.BACKSOLVED_TAG:
+            if tag.name.upper() == PuzzleTag.BACKSOLVED.upper():
                 transaction.on_commit(
                     lambda: AnswerViewSet._maybe_update_sheets_title(puzzle)
                 )

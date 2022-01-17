@@ -68,7 +68,6 @@ INSTALLED_APPS = [
     "social_django",
     "taggit",
     "rest_framework",
-    "django_celery_results",
 ]
 
 MIDDLEWARE = [
@@ -178,18 +177,6 @@ DATABASES["default"]["TEST"] = {"NAME": "test_cardboard"}
 # https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID-
 DISCORD_API_TOKEN = os.environ.get("DISCORD_API_TOKEN", None)
 
-# Discord server ID.
-DISCORD_GUILD_ID = os.environ.get("DISCORD_GUILD_ID", None)
-
-# Category (folder) to contain generated channels.
-DISCORD_TEXT_CATEGORY = os.environ.get("DISCORD_TEXT_CATEGORY", "text [puzzles]")
-DISCORD_VOICE_CATEGORY = os.environ.get("DISCORD_VOICE_CATEGORY", "voice [puzzles]")
-DISCORD_ARCHIVE_CATEGORY = os.environ.get("DISCORD_ARCHIVE_CATEGORY", "archive")
-DISCORD_PUZZLE_ANNOUNCEMENTS_CHANNEL = os.environ.get(
-    "DISCORD_PUZZLE_ANNOUNCEMENTS_CHANNEL", None
-)
-DISCORD_DEVS_ROLE = os.environ.get("DISCORD_DEVS_ROLE", "dev")
-
 # Discord Bot settings
 
 # TODO(akirabaruah): This is a hack. Find a better way to set the bot's hunt.
@@ -227,7 +214,9 @@ if GOOGLE_API_AUTHN_INFO is not None:
         GOOGLE_DRIVE_HUNT_FOLDER_ID
     )
 else:
-    logger.warn("Google Drive integration not set up. All emails will be accepted.")
+    logger.warn(
+        "Google Drive integration not set up. All emails will be accepted. Sheets will not be created."
+    )
 
 
 AUTHENTICATION_BACKENDS = [
@@ -300,6 +289,7 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {"max_retries": 3, "queue_order_strategy": "pr
 CELERY_BROKER_POOL_LIMIT = 1
 CELERY_REDIS_MAX_CONNECTIONS = 1  # Only for sending results, not enqueueing tasks
 CELERY_TASK_DEFAULT_PRIORITY = TaskPriority.MED.value
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
 # Logging configuration
 LOGGING = {
