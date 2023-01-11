@@ -1,22 +1,22 @@
+import logging
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
-from django.http import HttpResponseRedirect, HttpResponseForbidden
-from django.shortcuts import get_object_or_404, render, redirect
+from django.http import HttpResponseForbidden, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 from django.views.generic.base import RedirectView
+
 from puzzles.models import PuzzleTag
 
+from .chart_utils import get_chart_data
 from .forms import HuntForm, HuntSettingsForm
 from .models import Hunt
-from .chart_utils import *
-
-import logging
-
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def index(request):
     form = HuntForm()
 
     if request.method == "POST":
-        if user.is_staff:
+        if request.user.is_staff:
             form = HuntForm(request.POST)
             if form.is_valid():
                 with transaction.atomic():
