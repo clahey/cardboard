@@ -84,9 +84,9 @@ MIDDLEWARE = [
 ]
 
 
-if DEBUG:
-    INSTALLED_APPS += ["silk"]
-    MIDDLEWARE = ["silk.middleware.SilkyMiddleware"] + MIDDLEWARE
+#if DEBUG:
+#    INSTALLED_APPS += ["silk"]
+#    MIDDLEWARE = ["silk.middleware.SilkyMiddleware"] + MIDDLEWARE
 
 ROOT_URLCONF = "cardboard.urls"
 

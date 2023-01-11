@@ -35,7 +35,7 @@ urlpatterns = [
     path("", include("social_django.urls", namespace="social")),
 ]
 
-if settings.DEBUG:
-    urlpatterns += [
-        path("silk/", include("silk.urls", namespace="silk")),
-    ]
+#if settings.DEBUG:
+#    urlpatterns += [
+#        path("silk/", include("silk.urls", namespace="silk")),
+#    ]
