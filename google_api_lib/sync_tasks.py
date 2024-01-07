@@ -30,6 +30,8 @@ def auth_allowed(backend, details, response, *args, **kwargs):
 
 @shared_task(base=GoogleApiClientTask, bind=True)
 def get_file_user_emails(self, file_id) -> List[str]:
+
+    logger.warn('file_id: %s' % (file_id,))
     """
     Returns a sorted list of emails that have access to `file_id` or None if the file is
     world readable.
@@ -39,6 +41,7 @@ def get_file_user_emails(self, file_id) -> List[str]:
     )
 
     permissions = response["permissions"]
+    logger.warn('permissions: %s' % (permissions,))
 
     emails = set()
     for perm in permissions:
