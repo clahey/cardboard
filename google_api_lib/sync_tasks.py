@@ -24,14 +24,12 @@ def auth_allowed(backend, details, response, *args, **kwargs):
     email_list = get_file_user_emails(settings.GOOGLE_DRIVE_HUNT_FOLDER_ID)
     # allow all emails if Google Drive integration is not set up
     # otherwise, only allow emails added to Google Drive folder
-    if settings.GOOGLE_API_AUTHN_INFO and email not in email_list:
+    if settings.GOOGLE_API_AUTHN_INFO and (email_list is None or email not in email_list):
         raise AuthForbidden(backend)
 
 
 @shared_task(base=GoogleApiClientTask, bind=True)
 def get_file_user_emails(self, file_id) -> List[str]:
-
-    logger.warn('file_id: %s' % (file_id,))
     """
     Returns a sorted list of emails that have access to `file_id` or None if the file is
     world readable.
@@ -41,12 +39,11 @@ def get_file_user_emails(self, file_id) -> List[str]:
     )
 
     permissions = response["permissions"]
-    logger.warn('permissions: %s' % (permissions,))
 
     emails = set()
     for perm in permissions:
         if perm["id"] == "anyoneWithLink":
-            continue
+            return None
         email = perm["emailAddress"]
         emails.add(email)
         emails.add(email.lower())
