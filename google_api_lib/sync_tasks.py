@@ -24,7 +24,7 @@ def auth_allowed(backend, details, response, *args, **kwargs):
     email_list = get_file_user_emails(settings.GOOGLE_DRIVE_HUNT_FOLDER_ID)
     # allow all emails if Google Drive integration is not set up
     # otherwise, only allow emails added to Google Drive folder
-    if settings.GOOGLE_API_AUTHN_INFO and (email_list is None or email not in email_list):
+    if settings.GOOGLE_API_AUTHN_INFO and (email_list is not None and email not in email_list):
         raise AuthForbidden(backend)
 
 
