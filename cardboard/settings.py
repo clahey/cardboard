@@ -31,7 +31,7 @@ if not SECRET_KEY:
     SECRET_KEY = get_random_secret_key()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = bool(strtobool(os.environ.get("DEBUG", "True")))
+DEBUG = bool(strtobool(os.environ.get("DEBUG", "false")))
 
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
@@ -41,6 +41,13 @@ ALLOWED_HOSTS = [
     "smallboard.herokuapp.com",
     ".smallboard.app",
     "cardinality-cardboard.herokuapp.com",
+]
+
+# The first is the published Cardboard Chrome Extension.
+# The second is a local version being used for development.
+CSRF_TRUSTED_ORIGINS = [
+    "chrome-extension://fhldkjfidcbfienegpehemncionolmfa",
+    "chrome-extension://cahmppnjflkbimomgndbcmbdoafdegbi",
 ]
 
 # This should be turned on in production to redirect HTTP to HTTPS
@@ -69,9 +76,11 @@ INSTALLED_APPS = [
     "social_django",
     "taggit",
     "rest_framework",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -84,9 +93,9 @@ MIDDLEWARE = [
 ]
 
 
-#if DEBUG:
-#    INSTALLED_APPS += ["silk"]
-#    MIDDLEWARE = ["silk.middleware.SilkyMiddleware"] + MIDDLEWARE
+if DEBUG:
+    INSTALLED_APPS += ["silk"]
+    MIDDLEWARE = ["silk.middleware.SilkyMiddleware"] + MIDDLEWARE
 
 ROOT_URLCONF = "cardboard.urls"
 
@@ -310,6 +319,10 @@ LOGGING = {
             "class": "logging.StreamHandler",
         },
     },
+    "root": {
+        "handlers": ["console"],
+        "level": os.getenv("DJANGO_APP_LOG_LEVEL", "INFO"),
+    },
     "loggers": {
         "django": {
             "handlers": ["console"],
@@ -326,3 +339,6 @@ CACHES = {
         "LOCATION": os.environ.get("REDIS_URL", "redis://"),
     }
 }
+
+# Use 64 bit primary keys
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

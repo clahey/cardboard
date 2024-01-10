@@ -198,6 +198,12 @@ class Puzzle(models.Model):
             and self.tags.filter(name=PuzzleTag.BACKSOLVED, hunt=self.hunt).exists()
         )
 
+    def is_freebie(self):
+        return (
+            self.is_solved()
+            and self.tags.filter(name=PuzzleTag.FREEBIE, hunt=self.hunt).exists()
+        )
+
     @staticmethod
     def maybe_truncate_name(name):
         max_allowed_length = Puzzle._meta.get_field("name").max_length
@@ -227,6 +233,7 @@ class PuzzleActivity(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     puzzle = models.ForeignKey(Puzzle, on_delete=models.CASCADE)
     last_edit_time = models.DateTimeField()
+    num_edits = models.IntegerField(default=0)
 
     class Meta:
         default_related_name = "puzzle_activities"

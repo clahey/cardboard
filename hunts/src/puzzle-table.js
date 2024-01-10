@@ -26,13 +26,25 @@ const TABLE_COLUMNS = [
     Header: "Name",
     accessor: "name",
     Cell: NameCell,
-    className: "col-4",
+    className: "col-3",
+  },
+  {
+    Header: "Tags",
+    id: "tags",
+    Cell: TagCell,
+    className: "col-3",
+    accessor: (row) => row.tags.map(({ name }) => name).join(" "),
+    filter: "tagsFilter",
   },
   {
     Header: "",
     accessor: (row) => row.recent_editors,
     Cell: UsersCell,
     id: "recentEditors",
+  },
+  {
+    accessor: "top_editors",
+    id: "topEditors",
   },
   {
     Header: "Answer",
@@ -58,14 +70,6 @@ const TABLE_COLUMNS = [
     accessor: "created_on",
     Cell: CreationCell,
     className: "col-1",
-  },
-  {
-    Header: "Tags/Metas",
-    id: "tags",
-    accessor: (row) => row.tags.map(({ name }) => name).join(" "),
-    Cell: TagCell,
-    filter: "tagsFilter",
-    className: "col-3",
   },
   {
     accessor: "is_meta",
@@ -163,7 +167,7 @@ export const PuzzleTable = React.memo(({ data, filterSolved, filterTags }) => {
       globalFilter: "globalFilter",
       autoResetFilters: false,
       initialState: {
-        hiddenColumns: ["is_meta", "id", "url"],
+        hiddenColumns: ["is_meta", "id", "url", "topEditors"],
         filters: [],
         // Apparently our patch of react-table introduces the 'collapsed'
         // object that has the opposite semantics of the 'expanded' API.
@@ -186,11 +190,73 @@ export const PuzzleTable = React.memo(({ data, filterSolved, filterTags }) => {
     setFilter("tags", filterTags);
   }, [filterTags]);
 
+  let rowsList = [];
+  const roundColors = [
+    "crimson",
+    "dodgerblue",
+    "forestgreen",
+    "darkorchid",
+    "darkorange",
+    "goldenrod",
+    "coral",
+    "darkslategray",
+    "powderblue",
+    "aquamarine",
+    "palevioletred",
+    "indigo",
+    "olive",
+    "violet",
+  ];
+
+  const topLevelId = (row) => parseInt(row.id.split(".")[0]);
+
+  rows.forEach((row, i) => {
+    prepareRow(row);
+
+    // Add coloring and space between top-level metas
+    if (i == 0 || topLevelId(row) != topLevelId(rows[i - 1])) {
+      if (i > 0) {
+        rowsList.push(
+          <tr key={`spacer-${row.id}`} style={{ height: "20px" }}></tr>
+        );
+      }
+
+      rowsList.push(
+        <tr key={`header-${row.id}`}>
+          <td
+            className="table-top-colorbar"
+            colSpan={`${row.cells.length + 1}`}
+            style={{
+              background: `linear-gradient(90deg, ${
+                roundColors[topLevelId(row) % roundColors.length]
+              }, transparent)`,
+            }}
+          ></td>
+        </tr>
+      );
+    }
+
+    rowsList.push(
+      <tr className={rowClassName(row)} {...row.getRowProps()}>
+        <td
+          className="table-side-colorbar"
+          style={{
+            backgroundColor: roundColors[topLevelId(row) % roundColors.length],
+          }}
+        ></td>
+        {row.cells.map((cell) => {
+          return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>;
+        })}
+      </tr>
+    );
+  });
+
   return (
     <>
       <Table size="sm" {...getTableProps()}>
         <thead>
           <tr>
+            <th className="table-side-colorbar"></th>
             {allColumns.map((column) =>
               column.isVisible ? (
                 <th {...column.getHeaderProps()} className={column.className}>
@@ -200,20 +266,7 @@ export const PuzzleTable = React.memo(({ data, filterSolved, filterTags }) => {
             )}
           </tr>
         </thead>
-        <tbody {...getTableBodyProps()}>
-          {rows.map((row) => {
-            prepareRow(row);
-            return (
-              <tr className={rowClassName(row)} {...row.getRowProps()}>
-                {row.cells.map((cell) => {
-                  return (
-                    <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
+        <tbody {...getTableBodyProps()}>{rowsList}</tbody>
       </Table>
     </>
   );
